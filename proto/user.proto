@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "/proto";
+
+service UserService {
+    rpc AuthenticateUser(AuthenticationRequest) returns (AuthenticationResponse);
+    rpc SaveUserDetails(SaveUserDetailRequest) returns (SavedUserDetailResponse);
+    rpc GetUserDetails(UserDetailsRequest) returns (UserDetailsResponse);
+    rpc UpdateUserName(UpdateUserNameRequest) returns (UpdateUserNameResponse);
+}
+
+message AuthenticationRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message AuthenticationResponse {
+    string token = 1;
+}
+
+message SaveUserDetailRequest {
+    string token = 1;
+    string name = 2;
+    int32 age = 3;
+}
+
+message SavedUserDetailResponse {
+    bool success = 1;
+}
+
+message UserDetailsRequest {
+    string token = 1;
+}
+
+message UserDetailsResponse {
+    string name = 1;
+    int32 age = 2;
+}
+
+message UpdateUserNameRequest {
+    string token = 1;
+    string newName = 2;
+}
+
+message UpdateUserNameResponse {
+    bool success = 1;
+}
+
+
+// protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/user.proto
