@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	pb "authentication/proto"
@@ -31,6 +32,31 @@ func TestUserService_AuthenticateUser_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.NotEmpty(t, resp.Token)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserService_AuthenticateUser_Failure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer db.Close()
+
+	server := userServiceServer{db: db}
+
+	mock.ExpectQuery("SELECT token FROM users WHERE username = ?").
+		WithArgs("invaliduser").
+		WillReturnRows(sqlmock.NewRows([]string{"token"}).AddRow("token"))
+
+	resp, err := server.AuthenticateUser(context.Background(), &pb.AuthenticationRequest{
+		Username: "invaliduser",
+		Password: "invalidpassword",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, "user already exist", err.Error())
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -107,6 +133,29 @@ func TestUserService_GetUserDetails_Success(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "testname", resp.Name)
 	assert.Equal(t, int32(30), resp.Age)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserService_GetUserDetails_Failure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer db.Close()
+	server := userServiceServer{db: db}
+
+	mock.ExpectQuery("SELECT name, age FROM users WHERE token = ?").
+		WithArgs("testtoken").
+		WillReturnError(errors.New("user not found"))
+
+	resp, err := server.GetUserDetails(context.Background(), &pb.UserDetailsRequest{
+		Token: "testtoken",
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, "user not found", err.Error())
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

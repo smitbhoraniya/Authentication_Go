@@ -21,6 +21,12 @@ type userServiceServer struct {
 }
 
 func (s *userServiceServer) AuthenticateUser(ctx context.Context, req *pb.AuthenticationRequest) (*pb.AuthenticationResponse, error) {
+	var existingToken string
+	_ = s.db.QueryRow("SELECT token FROM users WHERE username = $1", req.Username).Scan(&existingToken)
+	if existingToken != "" {
+		return nil, errors.New("user already exist")
+	}
+
 	token := uuid.New().String()
 
 	_, err := s.db.Exec("INSERT INTO users (username, password, token) VALUES ($1, $2, $3)", req.Username, req.Password, token)

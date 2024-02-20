@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"strings"
 
 	pb "authentication/proto"
 
@@ -36,19 +37,6 @@ func main() {
 	client := pb.NewUserServiceClient(conn)
 
 	r := gin.Default()
-	r.GET("/user", func(ctx *gin.Context) {
-		res, err := client.GetUserDetails(ctx, &pb.UserDetailsRequest{})
-		if err != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		ctx.JSON(http.StatusOK, gin.H{
-			"username": res.Name,
-			"age":      res.Age,
-		})
-	})
 	r.POST("/user", func(ctx *gin.Context) {
 		var user User
 
@@ -66,7 +54,7 @@ func main() {
 		})
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": err,
+				"error": err.Error(),
 			})
 			return
 		}
@@ -74,7 +62,42 @@ func main() {
 			"token": res.Token,
 		})
 	})
+	r.GET("/user", func(ctx *gin.Context) {
+		authHeader := ctx.GetHeader("Authorization")
+		if authHeader == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Authorization token is missing",
+			})
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+
+		res, err := client.GetUserDetails(ctx, &pb.UserDetailsRequest{
+			Token: token,
+		})
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{
+			"username": res.Name,
+			"age":      res.Age,
+		})
+	})
 	r.PUT("/user", func(ctx *gin.Context) {
+		authHeader := ctx.GetHeader("Authorization")
+		if authHeader == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Authorization token is missing",
+			})
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+
 		var user User
 		err := ctx.ShouldBind(&user)
 		if err != nil {
@@ -86,7 +109,7 @@ func main() {
 		res, err := client.SaveUserDetails(ctx, &pb.SaveUserDetailRequest{
 			Name:  user.Name,
 			Age:   user.Age,
-			Token: user.Token,
+			Token: token,
 		})
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
@@ -101,6 +124,16 @@ func main() {
 
 	})
 	r.PUT("/user/update", func(ctx *gin.Context) {
+		authHeader := ctx.GetHeader("Authorization")
+		if authHeader == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Authorization token is missing",
+			})
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+
 		var user User
 		err := ctx.ShouldBind(&user)
 		if err != nil {
@@ -111,7 +144,7 @@ func main() {
 		}
 		res, err := client.UpdateUserName(ctx, &pb.UpdateUserNameRequest{
 			NewName: user.Name,
-			Token:   user.Token,
+			Token:   token,
 		})
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
