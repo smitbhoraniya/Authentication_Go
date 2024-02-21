@@ -70,6 +70,10 @@ func TestUserService_SaveUserDetails_Success(t *testing.T) {
 
 	server := userServiceServer{db: db}
 
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM users WHERE token = ?").
+		WithArgs("testtoken").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
 	mock.ExpectExec("UPDATE users").
 		WithArgs("testname", 30, "testtoken").
 		WillReturnResult(sqlmock.NewResult(0, 1))
@@ -87,6 +91,31 @@ func TestUserService_SaveUserDetails_Success(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUserService_SaveUserDetails_Failure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer db.Close()
+
+	server := userServiceServer{db: db}
+
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM users WHERE token = ?").
+		WithArgs("testtoken").
+		WillReturnError(errors.New("token does not exist"))
+
+	resp, err := server.SaveUserDetails(context.Background(), &pb.SaveUserDetailRequest{
+		Name:  "testname",
+		Age:   30,
+		Token: "testtoken",
+	})
+
+	assert.Nil(t, resp)
+	assert.EqualError(t, err, "token does not exist")
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUserService_UpdateUserName_Success(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -95,6 +124,10 @@ func TestUserService_UpdateUserName_Success(t *testing.T) {
 	defer db.Close()
 
 	server := userServiceServer{db: db}
+
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM users WHERE token = ?").
+		WithArgs("testtoken").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 	mock.ExpectExec("UPDATE users").
 		WithArgs("newname", "testtoken").
@@ -108,6 +141,30 @@ func TestUserService_UpdateUserName_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.True(t, resp.Success)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUserService_UpdateUserName_Failure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer db.Close()
+
+	server := userServiceServer{db: db}
+
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM users WHERE token = ?").
+		WithArgs("testtoken").
+		WillReturnError(errors.New("token does not exist"))
+
+	resp, err := server.UpdateUserName(context.Background(), &pb.UpdateUserNameRequest{
+		NewName: "newname",
+		Token:   "testtoken",
+	})
+
+	assert.Nil(t, resp)
+	assert.EqualError(t, err, "token does not exist")
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

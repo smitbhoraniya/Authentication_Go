@@ -50,7 +50,16 @@ func (s *userServiceServer) GetUserDetails(ctx context.Context, req *pb.UserDeta
 }
 
 func (s *userServiceServer) SaveUserDetails(ctx context.Context, req *pb.SaveUserDetailRequest) (*pb.SavedUserDetailResponse, error) {
-	_, err := s.db.Exec("UPDATE users SET name = $1, age = $2 WHERE token = $3", req.Name, req.Age, req.Token)
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE token = $1", req.Token).Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, errors.New("token does not exist")
+	}
+
+	_, err = s.db.Exec("UPDATE users SET name = $1, age = $2 WHERE token = $3", req.Name, req.Age, req.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +68,16 @@ func (s *userServiceServer) SaveUserDetails(ctx context.Context, req *pb.SaveUse
 }
 
 func (s *userServiceServer) UpdateUserName(ctx context.Context, req *pb.UpdateUserNameRequest) (*pb.UpdateUserNameResponse, error) {
-	_, err := s.db.Exec("UPDATE users SET name = $1 WHERE token = $2", req.NewName, req.Token)
+	var count int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE token = $1", req.Token).Scan(&count)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, errors.New("token does not exist")
+	}
+
+	_, err = s.db.Exec("UPDATE users SET name = $1 WHERE token = $2", req.NewName, req.Token)
 	if err != nil {
 		return nil, err
 	}
